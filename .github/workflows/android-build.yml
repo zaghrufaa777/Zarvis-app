@@ -1,8 +1,8 @@
 name: Android APK
 
 on:
-  workflow_dispatch:      # run manually
-  push:                   # or on every push to main
+  workflow_dispatch:
+  push:
     branches: [ main ]
 
 jobs:
@@ -13,29 +13,35 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17
+      - name: Set up JDK 17 (required by modern AGP)
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-          cache: gradle
 
+      # Installs Android cmdline-tools + sdkmanager
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
+      # Install platform & build-tools that work for most projects.
+      # If your project uses another version, change the 34.0.0/34 values.
       - name: Install SDK packages
         run: |
           yes | sdkmanager --licenses
           sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 
-      - name: Make Gradle executable
+      - name: Gradle cache
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Make Gradle wrapper executable
         run: chmod +x ./gradlew
 
-      - name: Build Release
-        run: ./gradlew --no-daemon clean assembleRelease
+      # Build a DEBUG apk first (no signing needed)
+      - name: Build Debug
+        run: ./gradlew --no-daemon clean assembleDebug
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: app-release-apk
-          path: app/build/outputs/apk/release/*.apk
+          name: app-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
